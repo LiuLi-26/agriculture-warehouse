@@ -1,6 +1,5 @@
 package com.agriculture.warehouse.controller;
 
-import com.agriculture.warehouse.annotation.Log;
 import com.agriculture.warehouse.annotation.RequireRole;
 import com.agriculture.warehouse.dto.LogQueryDTO;
 import com.agriculture.warehouse.dto.OperationLogDTO;
@@ -18,18 +17,12 @@ public class LogController {
 
     @Autowired
     private OperationLogService logService;
-
-    /**
-     * 查询操作日志（管理员可查所有，普通用户只能查自己的）
-     */
     @PostMapping("/query")
     @Operation(summary = "查询操作日志")
     @RequireRole({"ADMIN", "WAREHOUSE"})
-    @Log(module = "日志管理", operation = "查询操作日志")
     public Page<OperationLogDTO> queryLogs(@RequestBody LogQueryDTO queryDTO,
                                            @RequestHeader(value = "X-User-Id", required = false) Long userId,
                                            @RequestHeader(value = "X-Role", required = false) String role) {
-        // 非管理员只能查自己的日志
         if (!"ADMIN".equals(role) && queryDTO.getUserId() == null) {
             queryDTO.setUserId(userId);
         }

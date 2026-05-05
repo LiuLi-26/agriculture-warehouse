@@ -4,9 +4,10 @@ import lombok.Data;
 import java.time.LocalDate;
 
 @Data
-public class InboundRequest {
+public class WasteRequest {
     private Long productId;
     private Integer quantity;
-    private LocalDate expiryDate;
-    private Long supplierId;  // ← 新增
+    private String wasteType;
+    private LocalDate wasteDate;
+    private String reason;
 }

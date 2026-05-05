@@ -7,8 +7,8 @@ import java.time.LocalDate;
 
 @Data
 @Entity
-@Table(name = "inbound_record")
-public class InboundRecord {
+@Table(name = "waste_record")
+public class WasteRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,20 +19,17 @@ public class InboundRecord {
 
     private Integer quantity;
 
-    @Column(name = "location_id")
-    private Long locationId;
+    @Column(name = "waste_type")
+    private String wasteType;  // EXPIRED, DAMAGED, OTHER
 
-    @Column(name = "inbound_time")
-    private LocalDateTime inboundTime;
+    @Column(name = "waste_date")
+    private LocalDate wasteDate;
+
+    private String reason;
 
     @Column(name = "operator_id")
     private Long operatorId;
 
-    @Column(name = "expiry_date")
-    private LocalDate expiryDate;
-
-    // ========== 新增：供应商关联 ==========
-    @Column(name = "supplier_id")
-    private Long supplierId;
-    // =================================
+    @Column(name = "create_time")
+    private LocalDateTime createTime;
 }

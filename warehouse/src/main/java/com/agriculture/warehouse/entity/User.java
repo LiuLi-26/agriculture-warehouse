@@ -24,4 +24,7 @@ public class User {
 
     @Column(name = "create_time")
     private LocalDateTime createTime;
+
+    @Column(length = 20)
+    private String status;  // ACTIVE, DISABLED
 }

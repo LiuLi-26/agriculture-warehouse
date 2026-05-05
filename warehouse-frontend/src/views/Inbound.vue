@@ -13,7 +13,7 @@
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="商品" prop="productId">
-              <el-select v-model="inboundForm.productId" placeholder="请选择商品" filterable>
+              <el-select v-model="inboundForm.productId" placeholder="请选择商品" filterable @change="simulateRecommend">
                 <el-option
                   v-for="item in productList"
                   :key="item.id"
@@ -24,8 +24,20 @@
             </el-form-item>
           </el-col>
           <el-col :span="8">
+            <el-form-item label="供应商" prop="supplierId">
+              <el-select v-model="inboundForm.supplierId" placeholder="请选择供应商" clearable filterable>
+                <el-option
+                  v-for="item in supplierList"
+                  :key="item.id"
+                  :label="item.name"
+                  :value="item.id"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
             <el-form-item label="入库数量" prop="quantity">
-              <el-input-number v-model="inboundForm.quantity" :min="1" :max="9999" />
+              <el-input-number v-model="inboundForm.quantity" :min="1" :max="9999" @change="simulateRecommend" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -90,6 +102,7 @@
       <el-table :data="inboundRecords" v-loading="recordLoading" stripe>
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="productName" label="商品名称" min-width="150" />
+        <el-table-column prop="supplierName" label="供应商" width="120" />
         <el-table-column prop="quantity" label="数量" width="100" />
         <el-table-column prop="locationCode" label="货位编号" width="120" />
         <el-table-column prop="zone" label="区域" width="100" />
@@ -112,7 +125,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '@/api'
 
@@ -120,6 +133,7 @@ const inboundFormRef = ref()
 const inboundLoading = ref(false)
 const recordLoading = ref(false)
 const productList = ref([])
+const supplierList = ref([])  // ← 新增
 const inboundRecords = ref([])
 const recommendLocation = ref(null)
 const recommendScore = ref(0)
@@ -127,6 +141,7 @@ const scoreDetail = ref('')
 
 const inboundForm = reactive({
   productId: null,
+  supplierId: null,  // ← 新增
   quantity: 1,
   expiryDate: ''
 })
@@ -147,9 +162,19 @@ const recordPage = reactive({
 const fetchProducts = async () => {
   try {
     const res = await api.getProducts()
-    productList.value = res
+    productList.value = res || []
   } catch (error) {
     console.error('获取商品列表失败:', error)
+  }
+}
+
+// 获取供应商列表
+const fetchSuppliers = async () => {
+  try {
+    const res = await api.get('/suppliers')
+    supplierList.value = res || []
+  } catch (error) {
+    console.error('获取供应商列表失败:', error)
   }
 }
 
@@ -158,13 +183,8 @@ const fetchInboundRecords = async () => {
   recordLoading.value = true
   try {
     const res = await api.getInboundRecords()
-    // 关联商品名称
-    const recordsWithName = res.map(record => ({
-      ...record,
-      productName: productList.value.find(p => p.id === record.productId)?.name || '未知'
-    }))
-    inboundRecords.value = recordsWithName
-    recordPage.total = recordsWithName.length
+    inboundRecords.value = res || []
+    recordPage.total = res?.length || 0
   } catch (error) {
     console.error('获取入库记录失败:', error)
   } finally {
@@ -172,7 +192,7 @@ const fetchInboundRecords = async () => {
   }
 }
 
-// 智能分配货位（前端模拟推荐）
+// 智能分配货位
 const simulateRecommend = async () => {
   const product = productList.value.find(p => p.id === inboundForm.productId)
   if (!product) return
@@ -189,7 +209,6 @@ const simulateRecommend = async () => {
     return
   }
 
-  // 简单评分
   let bestLocation = null
   let bestScore = -1
   let bestScoreDetail = ''
@@ -198,13 +217,11 @@ const simulateRecommend = async () => {
     let score = 0
     let details = []
 
-    // 相同商品
     if (loc.isOccupied && loc.currentProductId === inboundForm.productId) {
       score += 100
       details.push('相同商品 +100')
     }
 
-    // 存储条件匹配
     if (product.storageCondition === '冷藏' && loc.zone === '冷藏区') {
       score += 60
       details.push('冷藏条件匹配 +60')
@@ -217,12 +234,10 @@ const simulateRecommend = async () => {
       details.push('常温条件匹配 +60')
     }
 
-    // 靠近出口
     const num = parseInt(loc.locationCode.split('-')[1]) || 1
     score += Math.floor(40 / num)
     details.push(`靠近出口 +${Math.floor(40 / num)}`)
 
-    // 容量充足
     if (loc.capacity >= inboundForm.quantity) {
       score += 20
       details.push('容量充足 +20')
@@ -248,6 +263,7 @@ const handleInbound = async () => {
   try {
     const res = await api.inbound({
       productId: inboundForm.productId,
+      supplierId: inboundForm.supplierId,
       quantity: inboundForm.quantity,
       expiryDate: inboundForm.expiryDate
     })
@@ -266,34 +282,20 @@ const handleInbound = async () => {
 // 重置表单
 const resetForm = () => {
   inboundForm.productId = null
+  inboundForm.supplierId = null
   inboundForm.quantity = 1
   inboundForm.expiryDate = ''
   recommendLocation.value = null
   inboundFormRef.value?.resetFields()
 }
 
-// 监听商品选择变化
-const watchProduct = () => {
-  // 商品变化时重新推荐货位
-  if (inboundForm.productId) {
-    simulateRecommend()
-  }
-}
-
-// 监听数量变化
-const watchQuantity = () => {
-  if (inboundForm.productId && inboundForm.quantity) {
-    simulateRecommend()
-  }
-}
-
 // 监听商品和数量变化
-import { watch } from 'vue'
-watch(() => inboundForm.productId, watchProduct)
-watch(() => inboundForm.quantity, watchQuantity)
+watch(() => inboundForm.productId, simulateRecommend)
+watch(() => inboundForm.quantity, simulateRecommend)
 
 onMounted(async () => {
   await fetchProducts()
+  await fetchSuppliers()
   await fetchInboundRecords()
 })
 </script>

@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import Layout from '@/components/Layout.vue'
 
 const routes = [
   {
@@ -9,7 +10,7 @@ const routes = [
   // 管理员路由
   {
     path: '/admin',
-    component: () => import('@/components/AdminLayout.vue'),
+    component: Layout,
     redirect: '/admin/dashboard',
     children: [
       {
@@ -59,13 +60,79 @@ const routes = [
         name: 'AdminLog',
         component: () => import('@/views/Log.vue'),
         meta: { title: '操作日志', role: 'ADMIN' }
+      },
+      {
+        path: 'profile',
+        name: 'AdminProfile',
+        component: () => import('@/views/Profile.vue'),
+        meta: { title: '个人中心', role: 'ADMIN' }
+      },
+      {
+        path: 'user-list',
+        name: 'AdminUserList',
+        component: () => import('@/views/UserList.vue'),
+        meta: { title: '用户管理', role: 'ADMIN' }
+      },
+      {
+        path: 'supplier',
+        name: 'AdminSupplier',
+        component: () => import('@/views/Supplier.vue'),
+        meta: { title: '供应商管理', role: 'ADMIN' }
+      },
+      {
+        path: 'customer',
+        name: 'AdminCustomer',
+        component: () => import('@/views/Customer.vue'),
+        meta: { title: '客户管理', role: 'ADMIN' }
+      },
+      {
+        path: 'report-inbound',
+        name: 'AdminReportInbound',
+        component: () => import('@/views/ReportInbound.vue'),
+        meta: { title: '入库统计报表', role: 'ADMIN' }
+      },
+      {
+        path: 'report-outbound',
+        name: 'AdminReportOutbound',
+        component: () => import('@/views/ReportOutbound.vue'),
+        meta: { title: '出库统计报表', role: 'ADMIN' }
+      },
+      {
+        path: 'report-waste',
+        name: 'AdminReportWaste',
+        component: () => import('@/views/ReportWaste.vue'),
+        meta: { title: '损耗统计报表', role: 'ADMIN' }
+      },
+      {
+        path: 'system-config',
+        name: 'AdminSystemConfig',
+        component: () => import('@/views/SystemConfig.vue'),
+        meta: { title: '系统设置', role: 'ADMIN' }
+      },
+      {
+        path: 'inventory-check',
+        name: 'AdminInventoryCheck',
+        component: () => import('@/views/InventoryCheck.vue'),
+        meta: { title: '库存盘点', role: 'ADMIN' }
+      },
+      {
+        path: 'backup',
+        name: 'AdminBackup',
+        component: () => import('@/views/Backup.vue'),
+        meta: { title: '数据备份', role: 'ADMIN' }
+      },
+      {
+        path: 'help',
+        name: 'AdminHelp',
+        component: () => import('@/views/Help.vue'),
+        meta: { title: '操作指南', role: 'ADMIN' }
       }
     ]
   },
   // 仓库管理员路由
   {
     path: '/warehouse',
-    component: () => import('@/components/WarehouseLayout.vue'),
+    component: Layout,
     redirect: '/warehouse/dashboard',
     children: [
       {
@@ -109,13 +176,19 @@ const routes = [
         name: 'WarehouseEnvironment',
         component: () => import('@/views/Environment.vue'),
         meta: { title: '环境监测', role: 'WAREHOUSE' }
+      },
+      {
+        path: 'profile',
+        name: 'WarehouseProfile',
+        component: () => import('@/views/Profile.vue'),
+        meta: { title: '个人中心', role: 'WAREHOUSE' }
       }
     ]
   },
   // 客户路由
   {
     path: '/customer',
-    component: () => import('@/components/CustomerLayout.vue'),
+    component: Layout,
     redirect: '/customer/dashboard',
     children: [
       {
@@ -147,6 +220,12 @@ const routes = [
         name: 'CustomerEnvironment',
         component: () => import('@/views/Environment.vue'),
         meta: { title: '环境监测', role: 'CUSTOMER' }
+      },
+      {
+        path: 'profile',
+        name: 'CustomerProfile',
+        component: () => import('@/views/Profile.vue'),
+        meta: { title: '个人中心', role: 'CUSTOMER' }
       }
     ]
   }
@@ -174,10 +253,9 @@ router.beforeEach((to, from) => {
     return '/customer/dashboard'
   }
 
-  // 角色权限验证：检查用户是否有权限访问该路由
+  // 角色权限验证
   if (token && to.meta?.role) {
     if (to.meta.role !== role) {
-      // 无权限，跳转到对应角色的首页
       if (role === 'ADMIN') return '/admin/dashboard'
       if (role === 'WAREHOUSE') return '/warehouse/dashboard'
       return '/customer/dashboard'

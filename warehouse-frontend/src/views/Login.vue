@@ -115,8 +115,8 @@ const activeTab = ref('login')
 
 // 登录表单
 const loginForm = reactive({
-  username: 'admin',
-  password: '123456'
+  username: '',
+  password: ''
 })
 
 const loginRules = {

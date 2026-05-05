@@ -15,12 +15,16 @@ public class InboundResponse {
     private String zone;
     private LocalDateTime inboundTime;
     private LocalDate expiryDate;
+    private Long supplierId;      // ← 新增
+    private String supplierName;  // ← 新增
     private String message;
 
+    // 构造方法需要更新
     public InboundResponse(Long id, Long productId, String productName,
                            Integer quantity, Long locationId, String locationCode,
                            String zone, LocalDateTime inboundTime,
-                           LocalDate expiryDate, String message) {
+                           LocalDate expiryDate, Long supplierId,
+                           String supplierName, String message) {
         this.id = id;
         this.productId = productId;
         this.productName = productName;
@@ -30,6 +34,8 @@ public class InboundResponse {
         this.zone = zone;
         this.inboundTime = inboundTime;
         this.expiryDate = expiryDate;
+        this.supplierId = supplierId;
+        this.supplierName = supplierName;
         this.message = message;
     }
 }

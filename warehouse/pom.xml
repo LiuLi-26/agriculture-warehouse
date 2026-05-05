@@ -60,6 +60,12 @@
 			<artifactId>spring-boot-starter-data-redis</artifactId>
 		</dependency>
 
+		<!-- Reactor Core (Spring Data Redis 需要) -->
+		<dependency>
+			<groupId>io.projectreactor</groupId>
+			<artifactId>reactor-core</artifactId>
+		</dependency>
+
 		<!-- 连接池 -->
 		<dependency>
 			<groupId>org.apache.commons</groupId>

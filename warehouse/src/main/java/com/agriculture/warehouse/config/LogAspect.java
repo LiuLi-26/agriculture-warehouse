@@ -31,7 +31,21 @@ public class LogAspect {
 
     @Around("@annotation(com.agriculture.warehouse.annotation.Log)")
     public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
+
         long startTime = System.currentTimeMillis();
+
+        // 获取方法信息
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        Method method = signature.getMethod();
+
+        // ========== 排除日志模块自身的接口，避免递归 ==========
+        String className = method.getDeclaringClass().getSimpleName();
+        if ("LogController".equals(className)) {
+            // 日志模块的接口不记录日志，直接执行
+            System.out.println("【跳过日志】" + className + "." + method.getName() + " - 避免递归");
+            return joinPoint.proceed();
+        }
+        // ===================================================
 
         // 获取请求信息
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
@@ -51,7 +65,6 @@ public class LogAspect {
                 try {
                     userId = Long.parseLong(userIdStr);
                 } catch (NumberFormatException e) {
-                    // 忽略格式错误
                     userId = null;
                 }
             }
@@ -64,9 +77,7 @@ public class LogAspect {
             username = "用户" + userId;
         }
 
-        // 获取方法信息
-        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-        Method method = signature.getMethod();
+        // 获取日志注解信息
         Log logAnnotation = method.getAnnotation(Log.class);
 
         // 构建日志对象
@@ -91,9 +102,13 @@ public class LogAspect {
                 String[] paramNames = signature.getParameterNames();
                 for (int i = 0; i < args.length; i++) {
                     if (args[i] != null && !(args[i] instanceof HttpServletRequest)) {
-                        // 避免记录过大的对象
                         String paramName = paramNames != null && i < paramNames.length ? paramNames[i] : "arg" + i;
-                        detailMap.put(paramName, args[i]);
+                        // 避免记录过大的对象
+                        if (args[i] instanceof String && ((String) args[i]).length() > 500) {
+                            detailMap.put(paramName, "内容过长，已省略");
+                        } else {
+                            detailMap.put(paramName, args[i]);
+                        }
                     }
                 }
                 if (!detailMap.isEmpty()) {

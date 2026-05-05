@@ -3,6 +3,7 @@ package com.agriculture.warehouse.service;
 import com.agriculture.warehouse.dto.InboundRequest;
 import com.agriculture.warehouse.dto.InboundResponse;
 import com.agriculture.warehouse.entity.*;
+import com.agriculture.warehouse.exception.BusinessException;
 import com.agriculture.warehouse.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -10,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
-import com.agriculture.warehouse.exception.BusinessException;
 
 @Service
 public class InboundService {
@@ -25,6 +25,9 @@ public class InboundService {
     private InboundRepository inboundRepository;
 
     @Autowired
+    private SupplierRepository supplierRepository;
+
+    @Autowired
     private LocationScoreCalculator scoreCalculator;
 
     /**
@@ -36,6 +39,10 @@ public class InboundService {
     private StorageLocation findOptimalLocation(Product product, int quantity) {
         // 1. 获取所有空闲货位
         List<StorageLocation> freeLocations = locationRepository.findByIsOccupiedFalse();
+
+        if (freeLocations.isEmpty()) {
+            return null;
+        }
 
         // 2. 额外考虑已存放相同商品的货位（虽然被占用，但可以继续放）
         List<StorageLocation> sameProductLocations = locationRepository.findAll().stream()
@@ -84,26 +91,34 @@ public class InboundService {
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new BusinessException(404, "商品不存在，ID: " + request.getProductId()));
 
-        // 2. 智能分配货位
+        // 2. 验证供应商是否存在（如果传入了 supplierId）
+        String supplierName = null;
+        if (request.getSupplierId() != null) {
+            Supplier supplier = supplierRepository.findById(request.getSupplierId())
+                    .orElseThrow(() -> new BusinessException(404, "供应商不存在，ID: " + request.getSupplierId()));
+            supplierName = supplier.getName();
+        }
+
+        // 3. 智能分配货位
         StorageLocation location = findOptimalLocation(product, request.getQuantity());
 
         if (location == null) {
             throw new BusinessException(400, "没有可用的空闲货位，请先释放部分货位");
         }
 
-        // 3. 检查容量
+        // 4. 检查容量
         if (location.getCapacity() != null && request.getQuantity() > location.getCapacity()) {
             throw new BusinessException(400, "入库数量超过货位容量，货位容量: " + location.getCapacity());
         }
 
-        // 4. 如果货位是空闲的，占用它
+        // 5. 如果货位是空闲的，占用它
         if (!location.getIsOccupied()) {
             location.setIsOccupied(true);
             location.setCurrentProductId(product.getId());
             locationRepository.save(location);
         }
 
-        // 5. 创建入库记录
+        // 6. 创建入库记录（包含 supplierId）
         InboundRecord record = new InboundRecord();
         record.setProductId(product.getId());
         record.setQuantity(request.getQuantity());
@@ -111,10 +126,11 @@ public class InboundService {
         record.setInboundTime(LocalDateTime.now());
         record.setOperatorId(operatorId);
         record.setExpiryDate(request.getExpiryDate());
+        record.setSupplierId(request.getSupplierId());
 
         InboundRecord saved = inboundRepository.save(record);
 
-        // 6. 构建响应
+        // 7. 构建响应
         int finalScore = scoreCalculator.calculateScore(location, product, request.getQuantity());
 
         return new InboundResponse(
@@ -127,6 +143,8 @@ public class InboundService {
                 location.getZone(),
                 saved.getInboundTime(),
                 saved.getExpiryDate(),
+                request.getSupplierId(),
+                supplierName,
                 "入库成功，货位: " + location.getLocationCode() + " (评分: " + finalScore + ")"
         );
     }
@@ -139,9 +157,16 @@ public class InboundService {
     }
 
     /**
-     * 根据商品ID获取入库记录（按过期时间排序）
+     * 根据商品ID获取入库记录（按过期时间排序，用于先进先出）
      */
     public List<InboundRecord> getInboundRecordsByProduct(Long productId) {
         return inboundRepository.findByProductIdOrderByExpiryDateAsc(productId);
+    }
+
+    /**
+     * 根据货位ID获取入库记录
+     */
+    public List<InboundRecord> getInboundRecordsByLocation(Long locationId) {
+        return inboundRepository.findByLocationId(locationId);
     }
 }
